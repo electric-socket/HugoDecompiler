@@ -26,7 +26,7 @@ Dim As Integer StartA, ObjectA, PropertyA, EventA, ArrayA, DictionaryA, SpecialA
 Dim Shared As Integer GrammarCount, VerbCount, XVerbCount, DictEntry
 Dim As Long StartAddr, ObjectAddr, PropertyAddr
 Dim As Long EventAddr, ArraySpace, Dictionary, SpecialWords
-Dim As Long DictLen, DictAddr
+Dim As Long DictLen, DictAddr, SkipAddr
 
 Dim Shared As _Byte Token, TRAP, WordCount
 Dim Shared As Long G, H, I, J, K, L, M
@@ -456,17 +456,23 @@ Do
     ' First pass: identify and dispatch
     Select Case G
         Case NULL_T: _Continue ' Nulls used for alignment
-        Case OPEN_BRACKET_T To LESS_T, COMMA_T
-            Print Keywords(G);
+
+        Case OPEN_BRACKET_T To LESS_T, COMMA_T, AND_T, OR_T, IS_T, NOT_T, TRUE_T, FALSE_T, HELD_T To ANYTHING_T
+            Print Keywords(G); " ";
             _Continue
 
-        Case IF_T, ROUTINE_T ' Routine
+        Case BREAK_T, EOL_T ' symbol ends line
+            Print Keywords(G)
+            _Continue
+
+            ' Followed by skip address
+        Case IF_T, ELSE_T, ELSEIF_T, DO_T, ROUTINE_T, JUMP_T
             Print Keywords(G); " ";
             GoSub Skip
-        Case EOL_T
-            Print " EOL"
-            _Continue
 
+        Case OBJECTNUM_T, VALUE_T
+            Print Keywords(G); " ";
+            GoSub Number
 
 
 
@@ -751,8 +757,18 @@ L2 = ""
 
 
 Return
+Skip: ' Generate skip addr
+SkipAddr = Fi(K) * 256 + Fi(K + 1): K = K + 2
+Print "Skip by "; SkipAddr;
+Return
+
+Number:
+SkipAddr = Fi(K) * 256 + Fi(K + 1): K = K + 2
+Print "number"; SkipAddr;
+Return
 
 
+'xyzzy
 
 
 '  Handle token, advance to next
