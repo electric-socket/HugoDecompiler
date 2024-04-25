@@ -448,21 +448,26 @@ Print "TextBank   = "; TextBank; "/"; Hex$(TextBank)
 Input "more"; temp$
 
 K = InitAddr
-Print "initaddr "; Hex$(K); ":"
+Print "initaddr "; K; " / "; Hex$(K); ":"
+Print
+Print Space$(5);
 Do
     G = Fi(K)
     K = K + 1
 
+    Print
     ' First pass: identify and dispatch
     Select Case G
         Case NULL_T: _Continue ' Nulls used for alignment
 
-        Case OPEN_BRACKET_T To LESS_T, COMMA_T, AND_T, OR_T, IS_T, NOT_T, TRUE_T, FALSE_T, HELD_T To ANYTHING_T
+        Case OPEN_BRACKET_T To LESS_T, COMMA_T, AND_T, OR_T, IS_T, NOT_T, TRUE_T, FALSE_T,  _
+             HELD_T To ANYTHING_T, NOTHELD_T, MULTINOTHELD_T, PARSE_T, IN_T
             Print Keywords(G); " ";
             _Continue
 
-        Case BREAK_T, EOL_T ' symbol ends line
+        Case BREAK_T, EOL_T, PAUSE_T ' symbol ends line
             Print Keywords(G)
+            Print Space$(5);
             _Continue
 
             ' Followed by skip address
@@ -470,6 +475,7 @@ Do
             Print Keywords(G); " ";
             GoSub Skip
 
+            ' followed by number
         Case OBJECTNUM_T, VALUE_T
             Print Keywords(G); " ";
             GoSub Number
