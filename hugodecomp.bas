@@ -21,7 +21,7 @@ Const I_Speakto = &H25, SpeakSize = 2
 Const I_Perform = &H27, PerformSize = 2
 Const I_TextBank = &H29, TextSize = 2
 
-Const PROGRAMVERSION = "Ver. 0.1.14"
+Const PROGRAMVERSION = "Ver. 0.1.16"
 
 ColorNames:
 Const Black = 0, Blue = 1, Green = 2, Cyan = 3, Red = 4, Magenta = 5
