@@ -1,6 +1,12 @@
 $Let DEBUG = 0
 $Console:Only
 Option _Explicit
+'$Include:'Common_Dialog_Prefix.bi'
+
+' Used by open dialog
+Dim Filter$, Flags&, Hwnd&
+
+' Hugo Decompiler by Paul Robinson                                           'Hugo
 
 ReDim Shared As _Unsigned _Byte Fi(0), Fo(0)
 Const GrammarStart = &H40
@@ -14,6 +20,18 @@ Const I_EndGame = &H32, EndSize = 2
 Const I_Speakto = &H25, SpeakSize = 2
 Const I_Perform = &H27, PerformSize = 2
 Const I_TextBank = &H29, TextSize = 2
+
+Const PROGRAMVERSION = "Ver. 0.1.14"
+
+ColorNames:
+Const Black = 0, Blue = 1, Green = 2, Cyan = 3, Red = 4, Magenta = 5
+Const Brown = 6, White = 7
+Const Gray = 8, Light_Blue = 9, Light_Green = 10, Light_Cyan = 11
+Const Light_Red = 12, Light_Magenta = 13, Yellow = 14
+Const Bright_White = 15
+
+
+
 
 ' CHAR_TRANSLATION is simply a value that is added to an ASCII character
 '   in order to encode the text, i.e., make it unreadable to casual
@@ -37,23 +55,61 @@ ReDim Shared As String FullText, L1, L2, L3
 Dim As Long InitAddr, Main, Parse, ParseError, FindObject
 Dim As Long EndGame, Speakto, Perform, TextBank
 
+Color Light_Green: Print "Hugo Decompiler by Paul Robinson-";
+Color Light_Cyan: Print PROGRAMVERSION; " of 2024-04-26"
+Color White: Print "Note: this program is ";
+Color Red: Print "unfinished";
+Color White: Print ", ";
+Color Light_Red: Print "unpolished";
+Color White: Print ", and has parts that ";
+Color Red: Print "do not work";
+Color White: Print ". It is, in fact, a ";
+Color Green: Print "work-in-progress."
+Color Bright_White
+Print "This is a console based application, meaning if material runs off the page"
+Print "you can use the scroll bar to go back."
+Print "After this pause, you will be asked to supply the file name of a hugo game binary."
+Print "The file will be opened read only, and will not be affected."
+Input "Press ENTER after you have read this.", temp$
 
 Const FNum = 5
 Dim FN$
 Dim As _Unsigned _Integer64 FSize
-'Input "File Name"; FN$
-' FN$ = "L:\Recovered from 16 GB Computer\Documents\Programming\Hugo\Samples\tripkey\TRIPKEY.HEX"
-FN$ = "L:\Programming\Hugo\Librarian\the_librarian.hex"
-Print FN$
+
+' Invoke Open Read File dialog
+Filter$ = "Compiled Hugo Binaries (*.hex)|*.hex|All files (*.*)|*.*"
+Flags& = OFN_FILEMUSTEXIST + OFN_NOCHANGEDIR + OFN_READONLY '    add flag constants here
+FN$ = GetOpenFileName$("Select name of Hugo compiled game binary file", ".\", Filter$, 1, Flags&, Hwnd&)
+
+If FN$ = "" Then
+    Print "Operation cancelled."
+    End
+End If
+
+
+Print "Analysis of file "; FN$
 
 Open FN$ For Binary Access Read As #FNum
+
+' Find out how big the file is, and resize the array to fit
 FSize = LOF(FNum)
+
+If FSize < I_TextBank Then
+    Close
+    Print "File is too small or is corrupt"
+    End
+End If
+
 ReDim Fi(FSize), Fo(FSize)
+
+' Load the file in its entirety to array Fi
+
 Get #FNum, , Fi()
 Close #FNum
 
 
-
+' This is used to translate the entire file to decrypted texrt
+' Allowing capture of text strings.
 ''For I = 1 To FSize
 ''    K = Fi(I)
 ''    If K < 32 + CHAR_TRANSLATION Then K = 32 Else K = K - CHAR_TRANSLATION
@@ -450,6 +506,12 @@ Print "TextBank   = "; TextBank; "/"; Hex$(TextBank)
 
 
 
+Print "The following code tries different things and is incomplete "
+Print "and/or inaccurate. Viewer discretion advised."
+
+' Attempt to read a directory entry
+
+
 K = Dictionary
 'Dictionay len is always 2 bytes
 DictLen = Fi(K + 1) * 256 + Fi(K)
@@ -529,7 +591,7 @@ Input "more"; temp$
 
 
 
-
+' attempt to translate tokens into a form of readable code
 
 
 
@@ -584,7 +646,7 @@ Loop
 
 
 
-
+' Another attempt to dump the dictionary
 
 
 
@@ -635,7 +697,7 @@ Input "more", temp$
 
 
 
-
+' Another dictionary read attempt
 
 
 ' Ols xgecks
@@ -726,7 +788,7 @@ Next
 Input "More", temp$
 
 
-
+' yet anpther dictionary read attempt
 Print
 For J = 0 To 19
     G = Fi(DictAddr + J)
@@ -768,6 +830,9 @@ For J = 1 To 16
 Next
 Print ddChar; "   "; ddHex
 'Next
+
+
+' Attempt to scan the grammar table
 
 Print: Input "Grammar follows - press enter: ", temp$
 ' Grammar follows header
@@ -825,6 +890,9 @@ End If
 
 End
 
+
+' Utility to dump (iin hex) the 10 bytes of the file starting at byte K
+
 HexDump:
 
 For J = 1 To 20
@@ -850,10 +918,15 @@ L2 = ""
 
 
 Return
+
+' Extracts the "skip: address, for decision points, like IF, ELSE, ETC
+
 Skip: ' Generate skip addr
 SkipAddr = Fi(K) * 256 + Fi(K + 1): K = K + 2
 Print "Skip by "; SkipAddr;
 Return
+
+' Does the same thing as Skip, but for when the value is a number
 
 Number:
 SkipAddr = Fi(K) * 256 + Fi(K + 1): K = K + 2
@@ -861,8 +934,133 @@ Print "number"; SkipAddr;
 Return
 
 
-'xyzzy
+'Takes a long string and breaks it into page-sized pieces.
 
+Const MaxLength = 79
+Sub PrintW (Msg$)
+    Dim Temp$, Split$, breakspace%, breakdash%
+    Temp$ = Msg$
+    While Len(Temp$) > MaxLength
+        ''      Print Len(Temp$)
+        Split$ = Left$(Temp$, MaxLength)
+        breakspace% = _InStrRev(Split$, " ")
+        breakdash% = _InStrRev(Split$, "-")
+        ''      Print Split$
+        ''      Print breakspace%; breakdash%
+        ''      Input X$
+        If breakspace% > breakdash% Then
+            Split$ = Left$(Split$, breakspace%)
+            Temp$ = Mid$(Temp$, breakspace% + 1, Len(Temp$))
+        Else
+            Split$ = Left$(Split$, breakdash%)
+            Temp$ = Mid$(Temp$, breakdash% + 1, Len(Temp$))
+        End If
+        ''    Print "*"; Len(Temp$)
+        Print Split$
+    Wend
+    Print Temp$
+End Sub
+
+
+' Don't use this; it's not finished or tested yet.
+
+' Breaks a string up into screen-sized pieces
+Sub PrintCW (Msg$)
+    Dim Temp$, Split$, breakspace%, breakdash%, Linelen%, ColorPoint%
+    Dim Code$, Code2$, ColorNum%, Remaining%, SplitPoint%
+    Temp$ = Msg$
+    Linelen% = 0
+    Remaining% = MaxLength
+    While Len(Temp$) > MaxLength
+        ''      Print Len(Temp$)
+        ColorPoint% = InStr(Temp$, "\")
+        If ColorPoint% > 0 And ColorPoint% <= Remaining% Then
+            ' We have to handle it
+            Split$ = Left$(Temp$, ColorPoint% - 1)
+            Code$ = Mid$(Temp$, ColorPoint% + 1, 1)
+            Print Split$;
+            Remaining% = Remaining% - Len(Split$)
+            Select Case UCase$(Code$)
+                Case "0" To "9"
+                    Code2$ = Mid$(Temp$, ColorPoint% + 2, 1)
+                    ColorPoint% = ColorPoint% + 1
+                    If Code2$ >= "0" And Code2$ <= "9" Then
+                        Code$ = Code$ + Code2$
+                        ColorPoint% = ColorPoint% + 1
+                    End If
+                    ColorNum% = Val(Code$)
+                    If ColorNum% > 15 Then
+                        Color ColorNum%
+                    End If
+                    Temp$ = Mid$(Temp$, ColorPoint%, Len(Temp$))
+                    _Continue
+                Case "R", "N" ' New Line
+                    Print Split$
+                    Remaining% = MaxLength
+                    Temp$ = Mid$(Temp$, ColorPoint%, Len(Temp$))
+                    If Remaining% < 2 Then
+                        Print
+                        Remaining% = MaxLength
+                    End If
+                    _Continue
+            End Select
+
+        Else
+            Split$ = Left$(Temp$, Remaining%)
+            GoSub findend
+            If SplitPoint% < 2 Then
+                ' No room left
+                Print
+                Remaining% = MaxLength
+                _Continue
+            End If
+        End If
+
+        Temp$ = Mid$(Temp$, SplitPoint% + 1, Len(Temp$))
+
+        ''    Print "*"; Len(Temp$)
+        Print Split$;
+        Remaining% = Remaining% - SplitPoint%
+        If Remaining% < 2 Then
+            Print
+            Remaining% = MaxLength
+        End If
+    Wend
+
+    ' What's left can be printed
+    Print Temp$
+    Exit Sub
+
+    ' Find the largest piece that will fit
+    findend:
+    SplitPoint% = Len(Split$)
+
+    Do
+        breakspace% = _InStrRev(SplitPoint%, Split$, " ")
+        breakdash% = _InStrRev(SplitPoint%, Split$, "-")
+        If breakspace% > breakdash% Then
+            Split$ = Left$(Split$, breakspace%)
+            SplitPoint% = breakspace%
+        Else
+            Split$ = Left$(Split$, breakdash%)
+            SplitPoint% = breakdash%
+        End If
+        If SplitPoint% <= Remaining% Then Exit Do
+
+    Loop Until SplitPoint% < 2
+
+
+
+    Return
+End Sub
+
+
+
+
+
+
+
+' Another attempt to process tokens
 
 '  Handle token, advance to next
 Sub ProcessToken
@@ -912,6 +1110,8 @@ Sub ProcessToken
 
 End Sub
 
+' Another to process verbs
+
 Sub ProcessVerbs
     Dim PrintCount As Integer
     Select Case Token
@@ -952,5 +1152,6 @@ Sub ProcessVerbs
 End Sub
 
 
+'$Include:'Common_Dialog_Suffix.bi'
 
 
