@@ -1,6 +1,7 @@
 $Let DEBUG = 0
 $Console:Only
 Option _Explicit
+
 ReDim Shared As _Unsigned _Byte Fi(0), Fo(0)
 Const GrammarStart = &H40
 ' Indexed addresses -  Value is *16
@@ -22,14 +23,14 @@ Const CHAR_TRANSLATION = &H14
 
 Dim As _Byte Version
 
-Dim As Integer StartA, ObjectA, PropertyA, EventA, ArrayA, DictionaryA, SpecialA
+Dim As Integer StartA, ObjectA, PropertyA, EventA, ArrayA, DictionaryA, SpecialA, TryAddrA
 Dim Shared As Integer GrammarCount, VerbCount, XVerbCount, DictEntry
 Dim As Long StartAddr, ObjectAddr, PropertyAddr
 Dim As Long EventAddr, ArraySpace, Dictionary, SpecialWords
-Dim As Long DictLen, DictAddr, SkipAddr
+Dim As Long DictLen, DictAddr, SkipAddr, TryAddr
 
-Dim Shared As _Byte Token, TRAP, WordCount
-Dim Shared As Long G, H, I, J, K, L, M
+Dim Shared As _Byte Token, TRAP, WordCount, Color1
+Dim Shared As Long E, F, G, H, I, J, K, L, M
 Dim Shared As String Keywords(0 To 255), Flag(0 To 255), text, temp, VerbType
 ReDim Shared As String FullText, L1, L2, L3
 
@@ -43,7 +44,7 @@ Dim As _Unsigned _Integer64 FSize
 'Input "File Name"; FN$
 ' FN$ = "L:\Recovered from 16 GB Computer\Documents\Programming\Hugo\Samples\tripkey\TRIPKEY.HEX"
 FN$ = "L:\Programming\Hugo\Librarian\the_librarian.hex"
-
+Print FN$
 
 Open FN$ For Binary Access Read As #FNum
 FSize = LOF(FNum)
@@ -51,16 +52,18 @@ ReDim Fi(FSize), Fo(FSize)
 Get #FNum, , Fi()
 Close #FNum
 
-For I = 1 To FSize
-    K = Fi(I)
-    If K < 32 + CHAR_TRANSLATION Then K = 32 Else K = K - CHAR_TRANSLATION
-    Fo(I) = K
-    FullText = FullText + Chr$(K)
-Next
-'
-Open "L:\tripkey.bin" For Binary Access Write As #FNum
-Put #FNum, , Fo()
-Close #FNum
+
+
+''For I = 1 To FSize
+''    K = Fi(I)
+''    If K < 32 + CHAR_TRANSLATION Then K = 32 Else K = K - CHAR_TRANSLATION
+''    Fo(I) = K
+''    FullText = FullText + Chr$(K)
+''Next
+''
+''Open "L:\tripkey.bin" For Binary Access Write As #FNum
+''Put #FNum, , Fo()
+''Close #FNum
 
 '
 '    Token values
@@ -445,7 +448,91 @@ Print "Speakto    = "; Speakto; "/"; Hex$(Speakto)
 Print "Perform    = "; Perform; "/"; Hex$(Perform)
 Print "TextBank   = "; TextBank; "/"; Hex$(TextBank)
 
+
+
+K = Dictionary
+'Dictionay len is always 2 bytes
+DictLen = Fi(K + 1) * 256 + Fi(K)
+Print "Dictionary Entries "; DictLen
+If Fi(K + 2) <> 0 Then Print "Dictionay table may not be accurate."
+K = K + 3
+G = K
+Print "Dumping first 5 addresses"
+Color1 = 4
+Color Color1
+Dim Dict(1 To 6) As Long
+For I = 1 To 5
+    Dict(I) = Fi(G + 1) * 256 + Fi(G)
+    G = G + 2
+Next
+For I = 0 To 9
+    G = Fi(K + I)
+    If G < 16 Then Print "0";
+    Print Hex$(G);
+    Color1 = 14 - Color1: Color Color1
+Next
+Color 7
+Print
+For I = 1 To 5
+    Print Dict(I);
+Next
+Print
+For I = 1 To 5
+    Print Hex$(Dict(I)); " ";
+Next
+
+Print
+
+For L = 1 To 5
+    TryAddr = Dict(L)
+    Print "Address "; TryAddr; "/"; Hex$(TryAddr)
+    K = TryAddr
+    L1 = "raw" + Space$(5)
+    L2 = "decrypt "
+    Print "hex"; Space$(5);
+    F = 4
+    Color F
+    For J = 0 To 34
+
+        G = Fi(K + J)
+        If G < 32 Then
+            L1 = L1 + "  "
+        Else
+            L1 = L1 + " " + Chr$(G)
+        End If
+        I = G - CHAR_TRANSLATION
+        If I < 32 Then
+            L2 = L2 + "  "
+        Else L2 = L2 + " " + Chr$(I)
+        End If
+        If E > 3 Then
+            E = 1
+            F = 14 - F
+            Color F
+        End If
+        If G < 16 Then Print "0";
+        Print Hex$(G);
+        F = 14 - F
+        Color F
+    Next
+    Color 7
+    Print
+    Print L1
+    Print L2
+    Print
+    '   K = K + 2
+    '  TryAddr = Fi(K + 1) * 256 + Fi(K)
+Next
+
+
 Input "more"; temp$
+
+
+
+
+
+
+
 
 K = InitAddr
 Print "initaddr "; K; " / "; Hex$(K); ":"
